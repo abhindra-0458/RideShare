@@ -1,63 +1,66 @@
+from pydantic_settings import BaseSettings
+from typing import Optional, List
 import os
-from dotenv import load_dotenv
+from functools import lru_cache
 
-load_dotenv()
+class Settings(BaseSettings):
+    # API Configuration
+    port: int = int(os.getenv("PORT", 8000))
+    environment: str = os.getenv("ENVIRONMENT", "development")
+    api_version: str = os.getenv("API_VERSION", "v1")
+    api_title: str = "RideShare API"
+    api_description: str = "Rideshare backend service with location tracking"
+    
+    # Database Configuration
+    db_host: str = os.getenv("DB_HOST", "localhost")
+    db_port: int = int(os.getenv("DB_PORT", 5432))
+    db_name: str = os.getenv("DB_NAME", "rideshare_db")
+    db_user: str = os.getenv("DB_USER", "postgres")
+    db_password: str = os.getenv("DB_PASSWORD", "")
+    database_url: str = os.getenv(
+        "DATABASE_URL",
+        f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', '')}@"
+        f"{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', 5432)}/{os.getenv('DB_NAME', 'rideshare_db')}"
+    )
+    
+    # JWT Configuration
+    jwt_secret: str = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+    jwt_refresh_secret: str = os.getenv("JWT_REFRESH_SECRET", "your-refresh-secret-key")
+    jwt_expire_minutes: int = int(os.getenv("JWT_EXPIRE_MINUTES", 15))
+    jwt_refresh_expire_days: int = int(os.getenv("JWT_REFRESH_EXPIRE_DAYS", 7))
+    
+    # Redis Configuration
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_password: Optional[str] = os.getenv("REDIS_PASSWORD")
+    
+    # Upload Configuration
+    upload_path: str = os.getenv("UPLOAD_PATH", "uploads/")
+    max_file_size: int = int(os.getenv("MAX_FILE_SIZE", 5242880))  # 5MB
+    allowed_file_types: List[str] = ["jpg", "jpeg", "png", "gif"]
+    
+    # Rate Limiting Configuration
+    rate_limit_window_minutes: int = int(os.getenv("RATE_LIMIT_WINDOW_MINUTES", 15))
+    rate_limit_max_requests: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", 100))
+    auth_rate_limit_max_requests: int = 5
+    location_rate_limit_max_requests: int = 30
+    
+    # Location Configuration
+    drift_alert_distance_km: float = float(os.getenv("DRIFT_ALERT_DISTANCE_KM", 2.0))
+    location_update_interval_ms: int = int(os.getenv("LOCATION_UPDATE_INTERVAL_MS", 30000))
+    
+    # WebSocket Configuration
+    websocket_cors_origin: str = os.getenv("WEBSOCKET_CORS_ORIGIN", "http://localhost:3000")
+    
+    # Logging Configuration
+    log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_file: str = os.getenv("LOG_FILE", "logs/app.log")
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
 
-# Server
-PORT = int(os.getenv('PORT', 3000))
-NODE_ENV = os.getenv('NODE_ENV', 'development')
-API_VERSION = os.getenv('API_VERSION', 'v1')
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
 
-# Database (merged from config.js + index.js)
-DATABASE = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'port': int(os.getenv('DB_PORT', 5432)),
-    'name': os.getenv('DB_NAME', 'rideshare_db'),
-    'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', '820958'),
-    'url': os.getenv('DATABASE_URL'),
-}
-
-# JWT
-JWT = {
-    'secret': os.getenv('JWT_SECRET'),
-    'refresh_secret': os.getenv('JWT_REFRESH_SECRET'),
-    'expires_in': os.getenv('JWT_EXPIRE', '15m'),
-    'refresh_expires_in': os.getenv('JWT_REFRESH_EXPIRE', '7d'),
-}
-
-# Redis
-REDIS = {
-    'url': os.getenv('REDIS_URL', 'redis://localhost:6379'),
-    'password': os.getenv('REDIS_PASSWORD'),
-}
-
-# Upload
-UPLOAD = {
-    'path': os.getenv('UPLOAD_PATH', 'uploads/'),
-    'max_file_size': int(os.getenv('MAX_FILE_SIZE', 5242880)),  # 5MB
-    'allowed_types': os.getenv('ALLOWED_FILE_TYPES', 'jpg,jpeg,png,gif').split(','),
-}
-
-# Rate Limit
-RATE_LIMIT = {
-    'window_ms': int(os.getenv('RATE_LIMIT_WINDOW_MS', 900000)),  # 15 minutes
-    'max_requests': int(os.getenv('RATE_LIMIT_MAX_REQUESTS', 100)),
-}
-
-# Location
-LOCATION = {
-    'drift_alert_distance_km': float(os.getenv('DRIFT_ALERT_DISTANCE_KM', 2)),
-    'update_interval_ms': int(os.getenv('LOCATION_UPDATE_INTERVAL_MS', 30000)),
-}
-
-# WebSocket
-WEBSOCKET = {
-    'cors_origin': os.getenv('WEBSOCKET_CORS_ORIGIN', 'http://localhost:3000'),
-}
-
-# Logging
-LOGGING = {
-    'level': os.getenv('LOG_LEVEL', 'INFO'),
-    'file': os.getenv('LOG_FILE', 'logs/app.log'),
-}
+settings = get_settings()

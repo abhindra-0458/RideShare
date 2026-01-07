@@ -1,62 +1,47 @@
-import psycopg2
-from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
-import os
-from config import DATABASE
-from logger import logger, error as log_error
+from sqlalchemy import create_engine, pool
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from config import settings
+import logging
 
-class Database:
-    def __init__(self):
-        self.pool = None
-        self.connection_string = None
+logger = logging.getLogger(__name__)
 
-    def initialize(self):
+class Base(DeclarativeBase):
+    """Base class for all models"""
+    pass
+
+# For async operations
+async_engine = create_async_engine(
+    settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+    echo=settings.environment == "development",
+    future=True,
+    pool_size=20,
+    max_overflow=40,
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+async def get_db():
+    """Get database session"""
+    async with AsyncSessionLocal() as session:
         try:
-            # Build connection string
-            self.connection_string = (
-                f"dbname={DATABASE['name']} "
-                f"user={DATABASE['user']} "
-                f"password={DATABASE['password']} "
-                f"host={DATABASE['host']} "
-                f"port={DATABASE['port']}"
-            )
-            
-            # Test connection
-            conn = psycopg2.connect(self.connection_string)
-            cursor = conn.cursor()
-            cursor.execute('SELECT NOW()')
-            cursor.close()
-            conn.close()
-            
-            logger.info('✅ Database connected')
-        except Exception as error:
-            log_error(f'❌ Database connection error: {str(error)}')
+            yield session
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Database error: {e}")
             raise
+        finally:
+            await session.close()
 
-    def query(self, text, params=None):
-        """Execute a query and return results"""
-        try:
-            conn = psycopg2.connect(self.connection_string)
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(text, params or ())
-            
-            # Check if SELECT query
-            if text.strip().upper().startswith('SELECT'):
-                result = cursor.fetchall()
-            else:
-                conn.commit()
-                result = cursor.rowcount
-            
-            cursor.close()
-            conn.close()
-            return result
-        except Exception as error:
-            log_error(f'Database query error: {str(error)}')
-            raise
-
-    async def query_async(self, text, params=None):
-        """Async wrapper for query"""
-        return self.query(text, params)
-
-# Singleton instance
-database = Database()
+# Synchronous engine for migrations
+sync_engine = create_engine(
+    settings.database_url,
+    echo=settings.environment == "development",
+    poolclass=pool.QueuePool,
+    pool_size=20,
+    max_overflow=40,
+)
