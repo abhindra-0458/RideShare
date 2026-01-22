@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import Optional, List
 import os
 from functools import lru_cache
@@ -55,9 +56,17 @@ class Settings(BaseSettings):
     log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
     log_file: str = os.getenv("LOG_FILE", "logs/app.log")
     
+    @field_validator("allowed_file_types", mode="before")
+    @classmethod
+    def parse_allowed_file_types(cls, v):
+        if isinstance(v, str):
+            return [x.strip() for x in v.split(",")]
+        return v
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 @lru_cache()
 def get_settings() -> Settings:

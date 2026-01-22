@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from repositories.user_repository import UserRepository
 from helpers import Helpers
@@ -19,7 +19,7 @@ class AuthToken:
     role: str
 
 async def get_current_user(
-    credentials: HTTPAuthCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     session: AsyncSession = Depends(get_db)
 ) -> dict:
     """Get current authenticated user"""
@@ -58,7 +58,7 @@ async def get_current_user(
         raise UnauthorizedError("Authentication failed")
 
 async def get_optional_user(
-    credentials: HTTPAuthCredentials = Depends(security) if False else None,
+    credentials: HTTPAuthorizationCredentials = Depends(security) if False else None,
     session: AsyncSession = Depends(get_db) if False else None
 ) -> dict | None:
     """Get optional authenticated user (for public endpoints)"""
