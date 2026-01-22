@@ -5,26 +5,19 @@ from datetime import datetime, timedelta
 @pytest.mark.asyncio
 async def test_create_ride(async_client: AsyncClient, mock_ride_service, mocker):
     # Mock auth dependency
-    # Note: We need to mock get_current_user global dependency in main app or override it
-    # But since we're using unittest.mock on the SERVICE layer, the route handler will still run
-    # and try to resolve dependencies.
-    # So we MUST override the auth dependency in the app.
-    # This is tricky with `mock_ride_service` alone.
-    
-    # We'll use app.dependency_overrides in the test function or fixture
     from main import app
     from auth import get_current_user
     
     mock_user = {"user_id": "test-user-id", "email": "test@example.com", "role": "user"}
     app.dependency_overrides[get_current_user] = lambda: mock_user
 
-    mock_ride_service.create_ride.return_value = {
+    mock_ride_service.create_ride = mocker.AsyncMock(return_value={
         "id": "ride-123",
         "title": "Test Ride",
         "start_latitude": 10.0,
         "start_longitude": 20.0,
         "created_by": "test-user-id"
-    }
+    })
 
     payload = {
         "title": "Test Ride",
@@ -44,17 +37,17 @@ async def test_create_ride(async_client: AsyncClient, mock_ride_service, mocker)
     assert data["data"]["id"] == "ride-123"
 
 @pytest.mark.asyncio
-async def test_get_ride_details(async_client: AsyncClient, mock_ride_service):
+async def test_get_ride_details(async_client: AsyncClient, mock_ride_service, mocker):
     # Mock auth
     from main import app
     from auth import get_current_user
     mock_user = {"user_id": "test-user-id", "role": "user"}
     app.dependency_overrides[get_current_user] = lambda: mock_user
 
-    mock_ride_service.get_ride_details.return_value = {
+    mock_ride_service.get_ride_details = mocker.AsyncMock(return_value={
         "id": "ride-123",
         "title": "Test Ride"
-    }
+    })
 
     response = await async_client.get("/api/v1/rides/ride-123")
     

@@ -3,14 +3,14 @@ from httpx import AsyncClient
 from schemas import UserRegistrationRequest
 
 @pytest.mark.asyncio
-async def test_register_user_success(async_client: AsyncClient, mock_user_service):
+async def test_register_user_success(async_client: AsyncClient, mock_user_service, mocker):
     # Setup mock
-    mock_user_service.register_user.return_value = {
+    mock_user_service.register_user = mocker.AsyncMock(return_value={
         "id": "test-uuid",
         "email": "test@example.com",
         "first_name": "Test",
         "last_name": "User"
-    }
+    })
 
     payload = {
         "email": "test@example.com",
@@ -32,9 +32,9 @@ async def test_register_user_success(async_client: AsyncClient, mock_user_servic
     mock_user_service.register_user.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_login_user_success(async_client: AsyncClient, mock_user_service):
+async def test_login_user_success(async_client: AsyncClient, mock_user_service, mocker):
     # Setup mock
-    mock_user_service.login_user.return_value = {
+    mock_user_service.login_user = mocker.AsyncMock(return_value={
         "access_token": "valid_token",
         "refresh_token": "valid_refresh",
         "token_type": "bearer",
@@ -42,7 +42,7 @@ async def test_login_user_success(async_client: AsyncClient, mock_user_service):
             "id": "test-uuid",
             "email": "test@example.com"
         }
-    }
+    })
 
     payload = {
         "email": "test@example.com",
@@ -50,6 +50,9 @@ async def test_login_user_success(async_client: AsyncClient, mock_user_service):
     }
 
     response = await async_client.post("/api/v1/auth/login", json=payload)
+
+    if response.status_code != 200:
+        print(f"FAILED: {response.status_code} {response.text}")
 
     assert response.status_code == 200
     data = response.json()
